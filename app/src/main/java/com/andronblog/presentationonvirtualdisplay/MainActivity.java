@@ -211,7 +211,7 @@ public class MainActivity extends Activity {
 
         private boolean mNewDisplayAdded = false;
         private int mCurrentDisplayId = -1;
-        private MyPresentation mPresentation;
+        private DemoPresentation mPresentation;
 
         @Override
         public void onDisplayAdded(int i) {
@@ -243,28 +243,10 @@ public class MainActivity extends Activity {
                     // create a presentation
                     mNewDisplayAdded = false;
                     Display display = mDisplayManager.getDisplay(i);
-                    mPresentation = new MyPresentation(MainActivity.this, display);
+                    mPresentation = new DemoPresentation(MainActivity.this, display);
                     mPresentation.show();
                 }
             }
         }
     };
-
-    private final static class MyPresentation extends Presentation {
-
-        public MyPresentation(Context context, Display display) {
-            super(context, display);
-        }
-
-        @Override
-        protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            Log.i(TAG, "MyPresentation onCreate");
-            setContentView(R.layout.my_presentation);
-
-            TextView tv = (TextView) findViewById(R.id.textView);
-            Animation myRotation = AnimationUtils.loadAnimation(getContext(), R.anim.rotator);
-            tv.startAnimation(myRotation);
-        }
-    }
 }

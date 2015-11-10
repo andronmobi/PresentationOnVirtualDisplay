@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0000ff"
-    android:gravity="center">
+    android:background="#0000ff">
+
+    <com.andronblog.presentationonvirtualdisplay.CameraView
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:id="@+id/cameraView"
+        android:layout_alignParentLeft="true"/>
 
     <TextView
         android:layout_width="wrap_content"
@@ -12,6 +17,18 @@
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:text="External Display"
         android:id="@+id/textView"
-        android:textColor="#ffffff"/>
+        android:textColor="#ffffff"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true" />
 
-</LinearLayout>
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text=""
+        android:id="@+id/tv_time"
+        android:textColor="#ffffff"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true" />
+
+</RelativeLayout>
