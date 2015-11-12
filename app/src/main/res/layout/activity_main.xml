@@ -23,7 +23,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Create"
+        android:text="Create &amp; Record"
         android:id="@+id/btn_create_virtual_display"
         android:layout_below="@+id/tv_virtual"
         android:layout_alignStart="@+id/tv_virtual" />
@@ -36,38 +36,13 @@
         android:layout_below="@+id/tv_virtual"
         android:layout_toEndOf="@+id/btn_create_virtual_display" />
 
-    <!-- Capture Control -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Capture Presentation:"
-        android:id="@+id/tv_capture"
-        android:layout_below="@+id/btn_create_virtual_display"
-        android:layout_marginTop="10dp"/>
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start"
-        android:id="@+id/btn_start_capture"
-        android:layout_below="@+id/tv_capture"
-        android:layout_alignStart="@+id/tv_capture" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Stop"
-        android:id="@+id/btn_stop_capture"
-        android:layout_alignTop="@+id/btn_start_capture"
-        android:layout_toEndOf="@+id/btn_start_capture" />
 
     <!-- Surface for Virtual Display -->
     <SurfaceView
         android:layout_width="320dp"
         android:layout_height="320dp"
         android:id="@+id/surfaceView"
-        android:layout_below="@+id/btn_start_capture"
+        android:layout_below="@+id/btn_play"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="10dp" />
 
@@ -78,7 +53,7 @@
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:text="Recorded video:"
         android:id="@+id/tv_play"
-        android:layout_below="@+id/surfaceView"
+        android:layout_below="@+id/btn_create_virtual_display"
         android:layout_marginTop="10dp"/>
 
     <Button
@@ -88,6 +63,14 @@
         android:id="@+id/btn_play"
         android:layout_below="@+id/tv_play"
         android:layout_alignStart="@+id/tv_play" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stop"
+        android:id="@+id/btn_stop"
+        android:layout_below="@+id/tv_play"
+        android:layout_toEndOf="@+id/btn_play" />
 
 </RelativeLayout>
 </ScrollView>

@@ -7,12 +7,17 @@ import android.content.Intent;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.media.MediaRouter;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.util.Size;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.Menu;
@@ -27,11 +32,15 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
+
 public class MainActivity extends Activity {
 
     private static final String TAG = "MainActivity";
 
     private static final int PERMISSION_CODE = 1;
+    private static final int FRAMERATE = 30;
+    private static final String FILENAME = Environment.getExternalStorageDirectory().getPath()+"/presentation.mp4";
 
     private int mWidth;
     private int mHeight;
@@ -39,6 +48,7 @@ public class MainActivity extends Activity {
 
     private DisplayManager mDisplayManager;
     private VirtualDisplay mVirtualDisplay;
+    private MediaRecorder mMediaRecorder;
 
     private int mResultCode;
     private Intent mResultData;
@@ -47,17 +57,22 @@ public class MainActivity extends Activity {
     private MediaProjection mProjection;
     private MediaProjection.Callback mProjectionCallback;
 
+    private MediaPlayer mMediaPlayer;
+    private SurfaceView mSurfaceView;
+
     private Surface mSurface;
     private Button mButtonCreate;
     private Button mButtonDestroy;
+    private Button mButtonPlayVideo;
+    private Button mButtonStopVideo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        SurfaceView surfaceView = (SurfaceView) findViewById(R.id.surfaceView);
-        mSurface = surfaceView.getHolder().getSurface();
+        mSurfaceView = (SurfaceView) findViewById(R.id.surfaceView);
+        mSurface = mSurfaceView.getHolder().getSurface();
 
         // Obtain display metrics of current display to know its density (dpi)
         WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -65,12 +80,13 @@ public class MainActivity extends Activity {
         display.getMetrics(mMetrics);
         // Initialize resolution of virtual display in pixels to show
         // the surface view on full screen
-        mWidth = surfaceView.getLayoutParams().width;
-        mHeight = surfaceView.getLayoutParams().height;
+        mWidth = mSurfaceView.getLayoutParams().width;
+        mHeight = mSurfaceView.getLayoutParams().height;
 
         mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         mDisplayManager.registerDisplayListener(mDisplayListener, null);
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        mMediaRecorder = new MediaRecorder();
 
         mButtonCreate = (Button) findViewById(R.id.btn_create_virtual_display);
         mButtonCreate.setOnClickListener(new View.OnClickListener() {
@@ -86,6 +102,43 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View view) {
                 stopScreenCapture();
+            }
+        });
+
+        mButtonPlayVideo = (Button) findViewById(R.id.btn_play);
+        mButtonPlayVideo.setEnabled(false);
+        mButtonPlayVideo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (mMediaPlayer == null) {
+                    Uri uri = Uri.parse(FILENAME);
+                    mMediaPlayer = MediaPlayer.create(MainActivity.this, uri, mSurfaceView.getHolder());
+                } else {
+                    try {
+                        mMediaPlayer.prepare();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return;
+                    }
+                }
+                mMediaPlayer.start();
+                mButtonCreate.setEnabled(false);
+                mButtonDestroy.setEnabled(false);
+                mButtonPlayVideo.setEnabled(false);
+                mButtonStopVideo.setEnabled(true);
+            }
+        });
+
+        mButtonStopVideo = (Button) findViewById(R.id.btn_stop);
+        mButtonStopVideo.setEnabled(false);
+        mButtonStopVideo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mMediaPlayer.stop();
+                mButtonCreate.setEnabled(true);
+                mButtonDestroy.setEnabled(false);
+                mButtonPlayVideo.setEnabled(true);
+                mButtonStopVideo.setEnabled(false);
             }
         });
     }
@@ -107,6 +160,12 @@ public class MainActivity extends Activity {
         super.onPause();
         Log.d(TAG, "onPause");
         destroyVirtualDisplay();
+        if (mMediaPlayer != null) {
+            mMediaPlayer.release();
+            mMediaPlayer = null;
+            mButtonPlayVideo.setEnabled(false);
+            mButtonStopVideo.setEnabled(false);
+        }
     }
 
     @Override
@@ -126,6 +185,7 @@ public class MainActivity extends Activity {
             mProjection.stop();
             mProjection = null;
         }
+        mMediaRecorder.release();
     }
 
     private void startScreenCapture() {
@@ -185,13 +245,26 @@ public class MainActivity extends Activity {
         if (mProjection != null && mVirtualDisplay == null) {
             Log.d(TAG, "createVirtualDisplay WxH (px): " + mWidth + "x" + mHeight +
                     ", dpi: " + mMetrics.densityDpi);
+            if (!prepareMediaRecorder(mWidth, mHeight, FRAMERATE, FILENAME)) {
+                Toast.makeText(this, "Can't prepare MediaRecorder", Toast.LENGTH_LONG).show();
+                return;
+            }
             int flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION;
             //flags |= DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC;
             mVirtualDisplay = mProjection.createVirtualDisplay("MyVirtualDisplay",
-                    mWidth, mHeight, mMetrics.densityDpi, flags, mSurface,
+                    mWidth, mHeight, mMetrics.densityDpi, flags, mMediaRecorder.getSurface(),
                     null /*Callbacks*/, null /*Handler*/);
             mButtonCreate.setEnabled(false);
             mButtonDestroy.setEnabled(true);
+            mButtonPlayVideo.setEnabled(false);
+            // Release the previous instance of media player before recording new data into the same file.
+            if (mMediaPlayer != null) {
+                mMediaPlayer.release();
+                mMediaPlayer = null;
+            }
+            // Start recording the content of MediaRecorder surface rendering by VirtualDisplay
+            // into file.
+            mMediaRecorder.start();
         }
     }
 
@@ -201,11 +274,38 @@ public class MainActivity extends Activity {
             Log.d(TAG, "destroyVirtualDisplay release");
             mVirtualDisplay.release();
             mVirtualDisplay = null;
-            mButtonDestroy.setEnabled(false);
-            mButtonCreate.setEnabled(true);
+            mMediaRecorder.stop();
         }
+        mButtonDestroy.setEnabled(false);
+        mButtonCreate.setEnabled(true);
+        mButtonPlayVideo.setEnabled(true);
     }
 
+    private boolean prepareMediaRecorder(int width, int height, int framerate, String filename) {
+        Size sz = new Size(width, height);
+        boolean supported = RecorderHelper.isSupportedByAVCEncoder(sz, framerate);
+        if (!supported) {
+            Log.e(TAG, "The combination of video size and framerate is not supported by MediaCodec");
+            return false;
+        }
+
+        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mMediaRecorder.setVideoEncodingBitRate(RecorderHelper.getVideoBitRate(sz));
+        mMediaRecorder.setVideoFrameRate(framerate);
+        mMediaRecorder.setVideoSize(sz.getWidth(), sz.getHeight());
+        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mMediaRecorder.setOutputFile(filename);
+        try {
+            mMediaRecorder.prepare();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e(TAG, "Prepare MediaRecorder is failed");
+            return false;
+        }
+
+        return true;
+    }
 
     private final DisplayManager.DisplayListener mDisplayListener = new DisplayManager.DisplayListener() {
 
