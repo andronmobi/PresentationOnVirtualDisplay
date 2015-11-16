@@ -1,9 +1,11 @@
 package com.andronblog.presentationonvirtualdisplay;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.Presentation;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
@@ -13,8 +15,11 @@ import android.media.MediaRouter;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.Size;
@@ -38,7 +43,9 @@ public class MainActivity extends Activity {
 
     private static final String TAG = "MainActivity";
 
-    private static final int PERMISSION_CODE = 1;
+    private static final int SCREEN_CAPTURE_PERMISSION_CODE = 1;
+    private static final int EXTERNAL_STORAGE_PERMISSION_CODE = 2;
+
     private static final int FRAMERATE = 30;
     private static final String FILENAME = Environment.getExternalStorageDirectory().getPath()+"/presentation.mp4";
 
@@ -89,6 +96,7 @@ public class MainActivity extends Activity {
         mMediaRecorder = new MediaRecorder();
 
         mButtonCreate = (Button) findViewById(R.id.btn_create_virtual_display);
+        mButtonCreate.setEnabled(false);
         mButtonCreate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -141,6 +149,35 @@ public class MainActivity extends Activity {
                 mButtonStopVideo.setEnabled(false);
             }
         });
+
+        // Check if we have write permission
+        int permission = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Write permissions is not granted");
+            // Request permissions
+            ActivityCompat.requestPermissions(this,
+                    new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    EXTERNAL_STORAGE_PERMISSION_CODE);
+        } else {
+            Log.i(TAG, "Write permission is granted!");
+            mButtonCreate.setEnabled(true);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch(requestCode) {
+            case EXTERNAL_STORAGE_PERMISSION_CODE: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.i(TAG, "Write permission is granted!");
+                    mButtonCreate.setEnabled(true);
+                } else {
+                    Toast.makeText(this, "Write permission is not granted", Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+        }
     }
 
     @Override
@@ -200,7 +237,7 @@ public class MainActivity extends Activity {
             createVirtualDisplay();
         } else {
             Log.i(TAG, "Request the permission for media projection");
-            startActivityForResult(mProjectionManager.createScreenCaptureIntent(), PERMISSION_CODE);
+            startActivityForResult(mProjectionManager.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE);
         }
     }
 
@@ -212,7 +249,7 @@ public class MainActivity extends Activity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         mResultCode = resultCode;
         mResultData = data;
-        if (requestCode != PERMISSION_CODE) {
+        if (requestCode != SCREEN_CAPTURE_PERMISSION_CODE) {
             Toast.makeText(this, "Unknown request code: " + requestCode, Toast.LENGTH_SHORT).show();
             return;
         }
