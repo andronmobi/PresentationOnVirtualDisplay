@@ -1,9 +1,11 @@
+![Platform](https://img.shields.io/badge/platform-Android-lightgrey.svg?style=flat)
+
 # How to show Presentation on android Virtual Display
 Clone the project with the tag **virtualdisplay** to see how to display [Presentation](https://developer.android.com/reference/android/app/Presentation.html) on Android virutual display.
 
 ```shell
 git clone https://github.com/andronmobi/PresentationOnVirtualDisplay.git \
--b l01_virtualdisplay
+-b virtualdisplay
 ```
 
 Two use-cases will be demonstrated in one simple android application:
@@ -40,7 +42,6 @@ In case if a user accepts the permission to cast a screen it will be possible to
 @Override
 public void onActivityResult(int requestCode, int resultCode, Intent data) {
     ...
-    Log.i(TAG, "Get media projection with the new permission");
     mProjection = getProjection();
     createVirtualDisplay();
 }
@@ -64,28 +65,33 @@ private MediaProjection getProjection() {
  
 private void createVirtualDisplay() {
     if (mProjection != null && mVirtualDisplay == null) {
-        Log.d(TAG, "createVirtualDisplay WxH (px): " + mWidth + "x" + mHeight +
-                ", dpi: " + mMetrics.densityDpi);
+        ...
         int flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION;
         //flags |= DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC;
         mVirtualDisplay = mProjection.createVirtualDisplay("MyVirtualDisplay",
                 mWidth, mHeight, mMetrics.densityDpi, flags, mSurface,
                 null /*Callbacks*/, null /*Handler*/);
-        mButtonCreate.setEnabled(false);
-        mButtonDestroy.setEnabled(true);
+        ...
     }
 }
  
 private void destroyVirtualDisplay() {
-    Log.d(TAG, "destroyVirtualDisplay");
     if (mVirtualDisplay != null) {
-        Log.d(TAG, "destroyVirtualDisplay release");
         mVirtualDisplay.release();
         mVirtualDisplay = null;
-        mButtonDestroy.setEnabled(false);
-        mButtonCreate.setEnabled(true);
+        ...
     }
 }
 ```
 ## Showing Presentation on Virtual Display
-Once a virtual display is created you can display a content on it. In our case, it will be a Presentation (android Dialog for secondary display) with LinearLayout as a content view and animated (rotating) TextView on it. To listen for changes in available display devices a DisplayListener must be registered:
+
+Once a virtual display is created you can display a content on it. In our case, it will be a **Presentation** (android Dialog for secondary display) with **LinearLayout** as a content view and animated (rotating) **TextView** on it. To listen for changes in available display devices a DisplayListener must be registered:
+
+```java
+mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+mDisplayManager.registerDisplayListener(mDisplayListener, null);
+```
+
+Then, after creating a virtual display the **onDisplayAdded** callback will be called. Here we register the number of display ID to create a new instance of MyPresentation class later in another callback – **onDisplayChanged**. The presentation will be dismissed in **onDisplayRemoved** if the virtual display showing it is removed.
+
+<img src=".github/virtualdisplay.png" width="40%"/>
