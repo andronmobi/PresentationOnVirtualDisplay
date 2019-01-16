@@ -12,8 +12,6 @@ import android.hardware.display.VirtualDisplay;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.media.MediaRouter;
-import android.media.projection.MediaProjection;
-import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -57,13 +55,6 @@ public class MainActivity extends Activity {
     private VirtualDisplay mVirtualDisplay;
     private MediaRecorder mMediaRecorder;
 
-    private int mResultCode;
-    private Intent mResultData;
-
-    private MediaProjectionManager mProjectionManager;
-    private MediaProjection mProjection;
-    private MediaProjection.Callback mProjectionCallback;
-
     private MediaPlayer mMediaPlayer;
     private SurfaceView mSurfaceView;
 
@@ -92,7 +83,6 @@ public class MainActivity extends Activity {
 
         mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         mDisplayManager.registerDisplayListener(mDisplayListener, null);
-        mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mMediaRecorder = new MediaRecorder();
 
         mButtonCreate = (Button) findViewById(R.id.btn_create_virtual_display);
@@ -216,70 +206,19 @@ public class MainActivity extends Activity {
         super.onDestroy();
         Log.d(TAG, "onDestroy");
         mDisplayManager.unregisterDisplayListener(mDisplayListener);
-        if (mProjection != null) {
-            Log.i(TAG, "Stop media projection");
-            mProjection.unregisterCallback(mProjectionCallback);
-            mProjection.stop();
-            mProjection = null;
-        }
         mMediaRecorder.release();
     }
 
     private void startScreenCapture() {
-        if (mProjection != null) {
-            // start virtual display
-            Log.i(TAG, "The media projection is already gotten");
-            createVirtualDisplay();
-        } else if (mResultCode != 0 && mResultData != null) {
-            // get media projection
-            Log.i(TAG, "Get media projection with the existing permission");
-            mProjection = getProjection();
-            createVirtualDisplay();
-        } else {
-            Log.i(TAG, "Request the permission for media projection");
-            startActivityForResult(mProjectionManager.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE);
-        }
+        createVirtualDisplay();
     }
 
     private void stopScreenCapture() {
         destroyVirtualDisplay();
     }
 
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        mResultCode = resultCode;
-        mResultData = data;
-        if (requestCode != SCREEN_CAPTURE_PERMISSION_CODE) {
-            Toast.makeText(this, "Unknown request code: " + requestCode, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (resultCode != RESULT_OK) {
-            Toast.makeText(this, "Screen Cast Permission Denied", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        Log.i(TAG, "Get media projection with the new permission");
-        mProjection = getProjection();
-        createVirtualDisplay();
-    }
-
-    private MediaProjection getProjection() {
-        MediaProjection projection = mProjectionManager.getMediaProjection(mResultCode, mResultData);
-        // Add a callback to be informed if the projection
-        // will be stopped from the status bar.
-        mProjectionCallback = new MediaProjection.Callback() {
-            @Override
-            public void onStop() {
-                Log.d(TAG, "MediaProjection.Callback onStop obj:" + toString());
-                destroyVirtualDisplay();
-                mProjection = null;
-            }
-        };
-        projection.registerCallback(mProjectionCallback, null);
-        return projection;
-    }
-
     private void createVirtualDisplay() {
-        if (mProjection != null && mVirtualDisplay == null) {
+        if (mVirtualDisplay == null) {
             Log.d(TAG, "createVirtualDisplay WxH (px): " + mWidth + "x" + mHeight +
                     ", dpi: " + mMetrics.densityDpi);
             if (!prepareMediaRecorder(mWidth, mHeight, FRAMERATE, FILENAME)) {
@@ -287,9 +226,10 @@ public class MainActivity extends Activity {
                 return;
             }
             int flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION;
-            //flags |= DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC;
-            mVirtualDisplay = mProjection.createVirtualDisplay("MyVirtualDisplay",
-                    mWidth, mHeight, mMetrics.densityDpi, flags, mMediaRecorder.getSurface(),
+            flags |= DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY;
+
+            mVirtualDisplay = mDisplayManager.createVirtualDisplay("MyVirtualDisplay",
+                    mWidth, mHeight, mMetrics.densityDpi, mMediaRecorder.getSurface(), flags,
                     null /*Callbacks*/, null /*Handler*/);
             mButtonCreate.setEnabled(false);
             mButtonDestroy.setEnabled(true);
